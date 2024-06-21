@@ -23,7 +23,7 @@ const registerSchema = yup.object().shape({
   password: yup.string().required("required"),
   location: yup.string().required("required"),
   occupation: yup.string().required("required"),
-  picture: yup.string().required("required"),
+  picture: yup.mixed().required("required"), // Update to .mixed() to support file validation
 });
 
 const loginSchema = yup.object().shape({
@@ -38,7 +38,7 @@ const initialValuesRegister = {
   password: "",
   location: "",
   occupation: "",
-  picture: "",
+  picture: null,
 };
 
 const initialValuesLogin = {
@@ -56,44 +56,65 @@ const Form = () => {
   const isRegister = pageType === "register";
 
   const register = async (values, onSubmitProps) => {
-    // this allows us to send form info with image
-    const formData = new FormData();
-    for (let value in values) {
-      formData.append(value, values[value]);
-    }
-    formData.append("picturePath", values.picture.name);
-
-    const savedUserResponse = await fetch(
-      "https://vibe-hub-social-media-app-backend.vercel.app/auth/register",
-      {
-        method: "POST",
-        body: formData,
+    try {
+      const formData = new FormData();
+      for (let value in values) {
+        formData.append(value, values[value]);
       }
-    );
-    const savedUser = await savedUserResponse.json();
-    onSubmitProps.resetForm();
+      formData.append("picturePath", values.picture.name);
 
-    if (savedUser) {
-      setPageType("login");
+      const savedUserResponse = await fetch(
+        "https://vibe-hub-social-media-app-backend.vercel.app/auth/register",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!savedUserResponse.ok) {
+        throw new Error(`Error: ${savedUserResponse.status}`);
+      }
+
+      const savedUser = await savedUserResponse.json();
+      onSubmitProps.resetForm();
+
+      if (savedUser) {
+        setPageType("login");
+      }
+    } catch (error) {
+      console.error("Failed to register user", error);
     }
   };
 
   const login = async (values, onSubmitProps) => {
-    const loggedInResponse = await fetch("https://vibe-hub-social-media-app-backend.vercel.app/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    });
-    const loggedIn = await loggedInResponse.json();
-    onSubmitProps.resetForm();
-    if (loggedIn) {
-      dispatch(
-        setLogin({
-          user: loggedIn.user,
-          token: loggedIn.token,
-        })
+    try {
+      const loggedInResponse = await fetch(
+        "https://vibe-hub-social-media-app-backend.vercel.app/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        }
       );
-      navigate("/home");
+
+      if (!loggedInResponse.ok) {
+        throw new Error(`Error: ${loggedInResponse.status}`);
+      }
+
+      const loggedIn = await loggedInResponse.json();
+      onSubmitProps.resetForm();
+
+      if (loggedIn) {
+        dispatch(
+          setLogin({
+            user: loggedIn.user,
+            token: loggedIn.token,
+          })
+        );
+        navigate("/home");
+      }
+    } catch (error) {
+      console.error("Failed to login user", error);
     }
   };
 
